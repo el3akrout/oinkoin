@@ -11,6 +11,7 @@ import 'package:piggybank/settings/settings-page.dart';
 import 'package:piggybank/style.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'accounts/accounts-tab-page.dart';
 import 'categories/categories-tab-page-edit.dart';
 
 class Shell extends StatefulWidget {
@@ -25,12 +26,15 @@ class ShellState extends State<Shell> {
 
   final GlobalKey<TabRecordsState> _tabRecordsKey = GlobalKey();
   final GlobalKey<TabCategoriesState> _tabCategoriesKey = GlobalKey();
+  final GlobalKey<TabAccountsState> _tabAccountsKey = GlobalKey();
 
   final GlobalKey<NavigatorState> _homeNavigatorKey =
       GlobalKey<NavigatorState>();
   final GlobalKey<NavigatorState> _categoriesNavigatorKey =
       GlobalKey<NavigatorState>();
   final GlobalKey<NavigatorState> _settingsNavigatorKey =
+      GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _accountsNavigatorKey =
       GlobalKey<NavigatorState>();
 
   Future<bool> _authenticate() async {
@@ -132,6 +136,9 @@ class ShellState extends State<Shell> {
             currentNavigator = _categoriesNavigatorKey.currentState;
             break;
           case 2:
+            currentNavigator = _accountsNavigatorKey.currentState;
+            break;
+          case 3:
             currentNavigator = _settingsNavigatorKey.currentState;
             break;
         }
@@ -183,6 +190,19 @@ class ShellState extends State<Shell> {
             child: TickerMode(
               enabled: _currentIndex == 2,
               child: Navigator(
+                key: _accountsNavigatorKey,
+                onGenerateRoute: (settings) {
+                  return MaterialPageRoute(
+                      builder: (_) => TabAccounts(key: _tabAccountsKey));
+                },
+              ),
+            ),
+          ),
+          Offstage(
+            offstage: _currentIndex != 3,
+            child: TickerMode(
+              enabled: _currentIndex == 3,
+              child: Navigator(
                 key: _settingsNavigatorKey,
                 onGenerateRoute: (settings) {
                   return MaterialPageRoute(builder: (_) => TabSettings());
@@ -204,6 +224,9 @@ class ShellState extends State<Shell> {
             }
             if (_currentIndex == 1) {
               await _tabCategoriesKey.currentState?.onTabChange();
+            }
+            if (_currentIndex == 2) {
+              await _tabAccountsKey.currentState?.onTabChange();
             }
           },
           destinations: [
@@ -227,6 +250,17 @@ class ShellState extends State<Shell> {
               icon: Semantics(
                 identifier: 'categories-tab',
                 child: Icon(Icons.category_outlined),
+              ),
+            ),
+            NavigationDestination(
+              label: "Accounts".i18n,
+              selectedIcon: Semantics(
+                identifier: 'accounts-tab-selected',
+                child: Icon(Icons.account_balance_wallet),
+              ),
+              icon: Semantics(
+                identifier: 'accounts-tab',
+                child: Icon(Icons.account_balance_wallet_outlined),
               ),
             ),
             NavigationDestination(

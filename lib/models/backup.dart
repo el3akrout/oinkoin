@@ -1,3 +1,4 @@
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/models/category-type.dart';
 import 'package:piggybank/models/record-tag-association.dart';
 import 'package:piggybank/models/record.dart';
@@ -11,6 +12,7 @@ class Backup extends Model {
   List<Category?> categories;
   List<RecurrentRecordPattern> recurrentRecordsPattern;
   List<RecordTagAssociation> recordTagAssociations;
+  List<Account> accounts;
   var created_at;
 
   String? packageName;
@@ -18,7 +20,8 @@ class Backup extends Model {
   String? databaseVersion;
 
   Backup(this.packageName, this.version, this.databaseVersion, this.categories,
-      this.records, this.recurrentRecordsPattern, this.recordTagAssociations) {
+      this.records, this.recurrentRecordsPattern, this.recordTagAssociations,
+      {this.accounts = const []}) {
     created_at = new DateTime.now().millisecondsSinceEpoch;
   }
 
@@ -32,6 +35,7 @@ class Backup extends Model {
           (index) => recurrentRecordsPattern[index].toMap()),
       'record_tag_associations': List.generate(recordTagAssociations.length,
           (index) => recordTagAssociations[index].toMap()),
+      'accounts': List.generate(accounts.length, (i) => accounts[i].toMap()),
       'created_at': created_at,
       'package_name': packageName ?? '',
       'version': version ?? '',
@@ -41,6 +45,14 @@ class Backup extends Model {
   }
 
   static Backup fromMap(Map<String, dynamic> map) {
+    // Step 0: load accounts
+    List<Account> accounts = [];
+    if (map.containsKey("accounts") && map["accounts"] != null) {
+      accounts = List.generate(map["accounts"].length, (i) {
+        return Account.fromMap(map["accounts"][i]);
+      });
+    }
+
     // Step 1: load categories
     var categories = List.generate(map["categories"].length, (i) {
       return Category.fromMap(map["categories"][i]);
@@ -60,6 +72,12 @@ class Backup extends Model {
           orElse: () => throw Exception(
               "Category not found")); // Provide a fallback or throw an error
       currentRowMap["category"] = matchingCategory;
+      // Resolve account_id -> a stub Account carrying only the old ID,
+      // so importDataFromBackupFile can remap it without aliasing backup.accounts objects.
+      final accountId = currentRowMap["account_id"] as int?;
+      if (accountId != null) {
+        currentRowMap["account"] = Account(null, id: accountId);
+      }
       return Record.fromMap(currentRowMap);
     });
 
@@ -97,7 +115,7 @@ class Backup extends Model {
     String? databaseVersion = nonEmptyStringValue(map, 'database_version');
 
     return Backup(packageName, version, databaseVersion, categories, records,
-        recurrentRecordsPattern, recordTagAssociations);
+        recurrentRecordsPattern, recordTagAssociations, accounts: accounts);
   }
 
   static String? nonEmptyStringValue(Map<String, dynamic> map, String key) {

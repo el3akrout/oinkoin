@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/material.dart' show Color;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:piggybank/helpers/datetime-utility-functions.dart';
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/models/category-type.dart';
 import 'package:piggybank/models/category.dart';
 import 'package:piggybank/models/record.dart';
@@ -18,6 +20,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:uuid/uuid.dart';
 
 import '../../models/record-tag-association.dart';
+import '../../i18n.dart';
+import '../service-config.dart';
 import '../logger.dart';
 import 'exceptions.dart';
 
@@ -29,7 +33,7 @@ class SqliteDatabase implements DatabaseInterface {
 
   SqliteDatabase._privateConstructor();
   static final SqliteDatabase instance = SqliteDatabase._privateConstructor();
-  static int get version => 17;
+  static int get version => 18;
   static Database? _db;
 
   /// For testing only: allows setting a custom database instance
@@ -227,14 +231,14 @@ class SqliteDatabase implements DatabaseInterface {
 
       // Update the INSERT statement to include the new column `time_zone_name`
       batch.rawInsert("""
-      INSERT OR IGNORE INTO records (title, value, datetime, timezone, category_name, category_type, description, recurrence_id) 
-      SELECT ?, ?, ?, ?, ?, ?, ?, ?
+      INSERT OR IGNORE INTO records (title, value, datetime, timezone, category_name, category_type, description, recurrence_id, account_id, transfer_id)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       WHERE NOT EXISTS (
-        SELECT 1 FROM records 
-        WHERE datetime = ? 
-          AND value = ? 
-          AND (title IS NULL OR title = ?) 
-          AND category_name = ? 
+        SELECT 1 FROM records
+        WHERE datetime = ?
+          AND value = ?
+          AND (title IS NULL OR title = ?)
+          AND category_name = ?
           AND category_type = ?
       )
     """, [
@@ -246,6 +250,8 @@ class SqliteDatabase implements DatabaseInterface {
         record.category!.categoryType!.index,
         record.description,
         record.recurrencePatternId,
+        record.account?.id,
+        record.transferId,
 
         // Duplicate check values
         record.utcDateTime.millisecondsSinceEpoch,
@@ -349,20 +355,38 @@ class SqliteDatabase implements DatabaseInterface {
                 m.*,
                 c.name,
                 c.color,
-                c.category_type,
+                COALESCE(c.category_type, m.category_type) AS category_type,
                 c.icon,
                 c.icon_emoji,
-                GROUP_CONCAT(rt.tag_name) AS tags
+                GROUP_CONCAT(rt.tag_name) AS tags,
+                a.id AS acct_id,
+                a.name AS acct_name,
+                a.color AS acct_color,
+                a.icon AS acct_icon,
+                a.initial_balance AS acct_initial_balance
             FROM records AS m
             LEFT JOIN categories AS c
                 ON m.category_name = c.name AND m.category_type = c.category_type
             LEFT JOIN records_tags AS rt
                 ON m.id = rt.record_id
+            LEFT JOIN accounts AS a
+                ON m.account_id = a.id
             GROUP BY m.id
         """);
     return List.generate(maps.length, (i) {
       Map<String, dynamic> currentRowMap = Map<String, dynamic>.from(maps[i]);
       currentRowMap["category"] = Category.fromMap(currentRowMap);
+      if (currentRowMap['acct_id'] != null) {
+        currentRowMap['account'] = Account(
+          currentRowMap['acct_name'] as String?,
+          id: currentRowMap['acct_id'] as int?,
+          iconCodePoint: currentRowMap['acct_icon'] as int?,
+          initialBalance: currentRowMap['acct_initial_balance'] != null
+              ? (currentRowMap['acct_initial_balance'] as num).toDouble()
+              : 0.0,
+          color: _parseAccountColor(currentRowMap['acct_color'] as String?),
+        );
+      }
       return Record.fromMap(currentRowMap);
     });
   }
@@ -456,16 +480,23 @@ class SqliteDatabase implements DatabaseInterface {
                 m.*,
                 c.name,
                 c.color,
-                c.category_type,
+                COALESCE(c.category_type, m.category_type) AS category_type,
                 c.icon,
                 c.icon_emoji,
                 c.is_archived,
-                GROUP_CONCAT(rt.tag_name) AS tags
+                GROUP_CONCAT(rt.tag_name) AS tags,
+                a.id AS acct_id,
+                a.name AS acct_name,
+                a.color AS acct_color,
+                a.icon AS acct_icon,
+                a.initial_balance AS acct_initial_balance
             FROM records AS m
             LEFT JOIN categories AS c
                 ON m.category_name = c.name AND m.category_type = c.category_type
             LEFT JOIN records_tags AS rt
                 ON m.id = rt.record_id
+            LEFT JOIN accounts AS a
+                ON m.account_id = a.id
             WHERE m.datetime >= ? AND m.datetime <= ?
             GROUP BY m.id
         """, [fromUnix, toUnix]);
@@ -473,6 +504,17 @@ class SqliteDatabase implements DatabaseInterface {
     final records = List.generate(maps.length, (i) {
       Map<String, dynamic> currentRowMap = Map<String, dynamic>.from(maps[i]);
       currentRowMap["category"] = Category.fromMap(currentRowMap);
+      if (currentRowMap['acct_id'] != null) {
+        currentRowMap['account'] = Account(
+          currentRowMap['acct_name'] as String?,
+          id: currentRowMap['acct_id'] as int?,
+          iconCodePoint: currentRowMap['acct_icon'] as int?,
+          initialBalance: currentRowMap['acct_initial_balance'] != null
+              ? (currentRowMap['acct_initial_balance'] as num).toDouble()
+              : 0.0,
+          color: _parseAccountColor(currentRowMap['acct_color'] as String?),
+        );
+      }
       return Record.fromMap(currentRowMap);
     });
 
@@ -521,6 +563,7 @@ class SqliteDatabase implements DatabaseInterface {
     await db.execute("DELETE FROM categories");
     await db.execute("DELETE FROM recurrent_record_patterns");
     await db.execute("DELETE FROM records_tags");
+    await db.execute("DELETE FROM accounts");
     await db.execute("UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='records'");
     await db
         .execute("UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='categories'");
@@ -528,6 +571,8 @@ class SqliteDatabase implements DatabaseInterface {
         "UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='recurrent_record_patterns'");
     await db
         .execute("UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='records_tags'");
+    await db
+        .execute("UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='accounts'");
     _db = null;
   }
 
@@ -548,7 +593,7 @@ class SqliteDatabase implements DatabaseInterface {
                 m.*,
                 c.name,
                 c.color,
-                c.category_type,
+                COALESCE(c.category_type, m.category_type) AS category_type,
                 c.icon,
                 c.icon_emoji,
                 c.is_archived,
@@ -601,7 +646,15 @@ class SqliteDatabase implements DatabaseInterface {
   @override
   Future<void> deleteRecordById(int? id) async {
     final db = (await database)!;
-    await db.delete("records", where: "id = ?", whereArgs: [id]);
+    // Check if this record is part of a transfer
+    final rows = await db.query('records',
+        columns: ['transfer_id'], where: 'id = ?', whereArgs: [id]);
+    if (rows.isNotEmpty && rows.first['transfer_id'] != null) {
+      final transferId = rows.first['transfer_id'] as String;
+      await db.delete('records', where: 'transfer_id = ?', whereArgs: [transferId]);
+    } else {
+      await db.delete("records", where: "id = ?", whereArgs: [id]);
+    }
     // There is a db trigger, deleting a record automatically delete the associated tags
   }
 
@@ -789,5 +842,176 @@ class SqliteDatabase implements DatabaseInterface {
       where: 'tag_name = ?',
       whereArgs: [tagName],
     );
+  }
+
+  // Account implementation
+
+  static Color? _parseAccountColor(String? serializedColor) {
+    if (serializedColor == null) return null;
+    final parts = serializedColor.split(':').map(int.parse).toList();
+    return Color.fromARGB(parts[0], parts[1], parts[2], parts[3]);
+  }
+
+  @override
+  Future<double> getTotalBalance() async {
+    final db = (await database)!;
+    final result = await db.rawQuery("""
+      SELECT COALESCE((SELECT SUM(initial_balance) FROM accounts), 0)
+           + COALESCE((SELECT SUM(value) FROM records), 0) AS total
+    """);
+    return (result.first['total'] as num).toDouble();
+  }
+
+  Future<List<Account>> getAllAccounts() async {
+    final db = (await database)!;
+    var maps = await db.rawQuery("""
+      SELECT a.*,
+        COALESCE(a.initial_balance, 0) + COALESCE(SUM(r.value), 0) AS current_balance
+      FROM accounts a
+      LEFT JOIN records r ON r.account_id = a.id
+      GROUP BY a.id
+      ORDER BY a.name ASC
+    """);
+    return List.generate(maps.length, (i) {
+      return Account.fromMap(Map<String, dynamic>.from(maps[i]));
+    });
+  }
+
+  @override
+  Future<Account?> getAccountById(int id) async {
+    final db = (await database)!;
+    var maps = await db.rawQuery("""
+      SELECT a.*,
+        COALESCE(a.initial_balance, 0) + COALESCE(SUM(r.value), 0) AS current_balance
+      FROM accounts a
+      LEFT JOIN records r ON r.account_id = a.id
+      WHERE a.id = ?
+      GROUP BY a.id
+    """, [id]);
+    if (maps.isEmpty) return null;
+    return Account.fromMap(Map<String, dynamic>.from(maps[0]));
+  }
+
+  @override
+  Future<int> addAccount(Account account) async {
+    final db = (await database)!;
+    final map = account.toMap();
+    map.remove('id');
+    return await db.insert('accounts', map);
+  }
+
+  @override
+  Future<int> updateAccount(int id, Account account) async {
+    final db = (await database)!;
+    final map = account.toMap();
+    map.remove('id');
+    return await db.update('accounts', map, where: 'id = ?', whereArgs: [id]);
+  }
+
+  @override
+  Future<void> deleteAccount(int id) async {
+    final db = (await database)!;
+    // Null out account_id on linked records
+    await db.update('records', {'account_id': null},
+        where: 'account_id = ?', whereArgs: [id]);
+    await db.delete('accounts', where: 'id = ?', whereArgs: [id]);
+  }
+
+  @override
+  Future<int> addTransfer(Account from, Account to, double amount,
+      DateTime utcDateTime, {String? timeZoneName, String? note}) async {
+    final db = (await database)!;
+    final uuid = Uuid().v4();
+    final tz = timeZoneName ?? ServiceConfig.localTimezone;
+    final transferLabel = 'Transfer'.i18n;
+
+    // Ensure the Transfer category exists
+    await db.insert(
+      'categories',
+      {'name': transferLabel, 'category_type': CategoryType.transfer.index, 'is_archived': 0, 'sort_order': 0},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+
+    final batch = db.batch();
+
+    // Expense on source account
+    batch.insert('records', {
+      'value': -amount.abs(),
+      'title': 'Transfer to %s'.i18n.fill([to.name ?? transferLabel]),
+      'datetime': utcDateTime.millisecondsSinceEpoch,
+      'timezone': tz,
+      'category_name': transferLabel,
+      'category_type': CategoryType.transfer.index,
+      'account_id': from.id,
+      'transfer_id': uuid,
+      'description': note,
+    });
+
+    // Income on destination account
+    batch.insert('records', {
+      'value': amount.abs(),
+      'title': 'Transfer from %s'.i18n.fill([from.name ?? transferLabel]),
+      'datetime': utcDateTime.millisecondsSinceEpoch,
+      'timezone': tz,
+      'category_name': transferLabel,
+      'category_type': CategoryType.transfer.index,
+      'account_id': to.id,
+      'transfer_id': uuid,
+      'description': note,
+    });
+
+    await batch.commit(noResult: true);
+    return 2;
+  }
+
+  @override
+  Future<void> deleteTransfer(String transferId) async {
+    final db = (await database)!;
+    await db.delete('records', where: 'transfer_id = ?', whereArgs: [transferId]);
+  }
+
+  @override
+  Future<List<Record>> getRecordsForAccount(int accountId) async {
+    final db = (await database)!;
+    var maps = await db.rawQuery("""
+      SELECT
+          m.*,
+          c.name,
+          c.color,
+          COALESCE(c.category_type, m.category_type) AS category_type,
+          c.icon,
+          c.icon_emoji,
+          GROUP_CONCAT(rt.tag_name) AS tags,
+          a.id AS acct_id,
+          a.name AS acct_name,
+          a.color AS acct_color,
+          a.icon AS acct_icon,
+          a.initial_balance AS acct_initial_balance
+      FROM records AS m
+      LEFT JOIN categories AS c
+          ON m.category_name = c.name AND m.category_type = c.category_type
+      LEFT JOIN records_tags AS rt
+          ON m.id = rt.record_id
+      LEFT JOIN accounts AS a
+          ON m.account_id = a.id
+      WHERE m.account_id = ?
+      GROUP BY m.id
+    """, [accountId]);
+    return List.generate(maps.length, (i) {
+      Map<String, dynamic> currentRowMap = Map<String, dynamic>.from(maps[i]);
+      currentRowMap["category"] = Category.fromMap(currentRowMap);
+      if (currentRowMap['acct_id'] != null) {
+        currentRowMap['account'] = Account(
+          currentRowMap['acct_name'] as String?,
+          id: currentRowMap['acct_id'] as int?,
+          iconCodePoint: currentRowMap['acct_icon'] as int?,
+          initialBalance: currentRowMap['acct_initial_balance'] != null
+              ? (currentRowMap['acct_initial_balance'] as num).toDouble()
+              : 0.0,
+          color: _parseAccountColor(currentRowMap['acct_color'] as String?),
+        );
+      }
+      return Record.fromMap(currentRowMap);
+    });
   }
 }

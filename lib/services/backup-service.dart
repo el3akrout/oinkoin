@@ -113,10 +113,11 @@ class BackupService {
       var categories = await database.getAllCategories();
       var recurrentRecordPatterns = await database.getRecurrentRecordPatterns();
       var recordTagAssociations = await database.getAllRecordTagAssociations();
+      var accounts = await database.getAllAccounts();
 
-      _logger.info('Backup data: ${records.length} records, ${categories.length} categories, ${recurrentRecordPatterns.length} recurrent patterns, ${recordTagAssociations.length} tags');
+      _logger.info('Backup data: ${records.length} records, ${categories.length} categories, ${recurrentRecordPatterns.length} recurrent patterns, ${recordTagAssociations.length} tags, ${accounts.length} accounts');
 
-      var backup = Backup(appName, version, databaseVersion, categories, records, recurrentRecordPatterns, recordTagAssociations);
+      var backup = Backup(appName, version, databaseVersion, categories, records, recurrentRecordPatterns, recordTagAssociations, accounts: accounts);
       var backupJsonStr = jsonEncode(backup.toMap());
 
       // Encrypt the backup JSON string if an encryption password is provided
@@ -256,7 +257,18 @@ class BackupService {
 
       var jsonMap = jsonDecode(fileContent);
       Backup backup = Backup.fromMap(jsonMap);
-      _logger.info('Importing: ${backup.records.length} records, ${backup.categories.length} categories');
+      _logger.info('Importing: ${backup.records.length} records, ${backup.categories.length} categories, ${backup.accounts.length} accounts');
+
+      // Add accounts and build ID remap table
+      final accountIdRemap = <int, int>{};
+      for (var backupAccount in backup.accounts) {
+        final oldId = backupAccount.id;
+        backupAccount.id = null;
+        final newId = await database.addAccount(backupAccount);
+        if (oldId != null) {
+          accountIdRemap[oldId] = newId;
+        }
+      }
 
       // Add categories
       for (var backupCategory in backup.categories) {
@@ -273,10 +285,14 @@ class BackupService {
         recordIdToTags.putIfAbsent(assoc.recordId, () => <String>{}).add(assoc.tagName);
       }
 
-      // Populate record.tags so addRecordsInBatch Phase 2 handles ID remapping
+      // Populate record.tags and remap account IDs
       for (var record in backup.records) {
         if (record?.id != null && recordIdToTags.containsKey(record!.id)) {
           record.tags = recordIdToTags[record.id]!;
+        }
+        if (record?.account?.id != null &&
+            accountIdRemap.containsKey(record!.account!.id)) {
+          record.account!.id = accountIdRemap[record.account!.id];
         }
       }
 

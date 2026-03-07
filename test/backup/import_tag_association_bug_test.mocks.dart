@@ -6,6 +6,7 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:piggybank/models/account.dart' as _i9;
 import 'package:piggybank/models/category-type.dart' as _i5;
 import 'package:piggybank/models/category.dart' as _i4;
 import 'package:piggybank/models/record-tag-association.dart' as _i7;
@@ -440,6 +441,105 @@ class MockDatabaseInterface extends _i1.Mock implements _i2.DatabaseInterface {
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),
       ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<_i9.Account>> getAllAccounts() => (super.noSuchMethod(
+        Invocation.method(
+          #getAllAccounts,
+          [],
+        ),
+        returnValue: _i3.Future<List<_i9.Account>>.value(<_i9.Account>[]),
+      ) as _i3.Future<List<_i9.Account>>);
+
+  @override
+  _i3.Future<_i9.Account?> getAccountById(int? id) => (super.noSuchMethod(
+        Invocation.method(
+          #getAccountById,
+          [id],
+        ),
+        returnValue: _i3.Future<_i9.Account?>.value(),
+      ) as _i3.Future<_i9.Account?>);
+
+  @override
+  _i3.Future<int> addAccount(_i9.Account? account) => (super.noSuchMethod(
+        Invocation.method(
+          #addAccount,
+          [account],
+        ),
+        returnValue: _i3.Future<int>.value(0),
+      ) as _i3.Future<int>);
+
+  @override
+  _i3.Future<int> updateAccount(
+    int? id,
+    _i9.Account? account,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateAccount,
+          [
+            id,
+            account,
+          ],
+        ),
+        returnValue: _i3.Future<int>.value(0),
+      ) as _i3.Future<int>);
+
+  @override
+  _i3.Future<void> deleteAccount(int? id) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteAccount,
+          [id],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<int> addTransfer(
+    _i9.Account? from,
+    _i9.Account? to,
+    double? amount,
+    DateTime? utcDateTime, {
+    String? timeZoneName,
+    String? note,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #addTransfer,
+          [
+            from,
+            to,
+            amount,
+            utcDateTime,
+          ],
+          {
+            #timeZoneName: timeZoneName,
+            #note: note,
+          },
+        ),
+        returnValue: _i3.Future<int>.value(0),
+      ) as _i3.Future<int>);
+
+  @override
+  _i3.Future<void> deleteTransfer(String? transferId) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteTransfer,
+          [transferId],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<_i6.Record>> getRecordsForAccount(int? accountId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getRecordsForAccount,
+          [accountId],
+        ),
+        returnValue: _i3.Future<List<_i6.Record>>.value(<_i6.Record>[]),
+      ) as _i3.Future<List<_i6.Record>>);
 
   @override
   _i3.Future<void> deleteDatabase() => (super.noSuchMethod(

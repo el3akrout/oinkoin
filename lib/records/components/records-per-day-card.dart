@@ -84,8 +84,8 @@ class MovementGroupState extends State<RecordsPerDayCard>
             MaterialPageRoute(
                 builder: (context) => EditRecordPage(
                       passedRecord: movement,
-                      readOnly: movement
-                          .isFutureRecord, // Future records are read-only
+                      readOnly: movement.isFutureRecord ||
+                          movement.transferId != null,
                     )));
         if (widget.onListBackCallback != null)
           await widget.onListBackCallback!();
@@ -129,12 +129,16 @@ class MovementGroupState extends State<RecordsPerDayCard>
         getCurrencyValueString(movement.value),
         style: _currencyFontStyle,
       ),
-      leading: CategoryIconCircle(
-        iconEmoji: movement.category?.iconEmoji,
-        iconDataFromDefaultIconSet: movement.category?.icon,
-        backgroundColor: movement.category?.color,
-        overlayIcon: movement.recurrencePatternId != null ? Icons.repeat : null,
-      ),
+      leading: Builder(builder: (context) {
+        final isTransfer = movement.transferId != null;
+        return CategoryIconCircle(
+          iconEmoji: isTransfer ? null : movement.category?.iconEmoji,
+          iconDataFromDefaultIconSet: isTransfer ? Icons.swap_horiz : movement.category?.icon,
+          backgroundColor: movement.category?.color ?? (isTransfer ? Theme.of(context).colorScheme.primaryContainer : null),
+          iconColor: isTransfer ? Colors.black : null,
+          overlayIcon: !isTransfer && movement.recurrencePatternId != null ? Icons.repeat : null,
+        );
+      }),
     );
 
     // Apply reduced opacity for future records

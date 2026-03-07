@@ -10,6 +10,7 @@ class CategoryIconCircle extends StatelessWidget {
   final double mainIconSize;
   final double overlayIconSize;
   final double circleSize;
+  final Color? iconColor;
 
   CategoryIconCircle({
     this.iconEmoji,
@@ -19,6 +20,7 @@ class CategoryIconCircle extends StatelessWidget {
     this.mainIconSize = 20.0,
     this.overlayIconSize = 15.0,
     this.circleSize = 40.0,
+    this.iconColor,
   });
 
   // Helper function to build the main icon container
@@ -72,9 +74,10 @@ class CategoryIconCircle extends StatelessWidget {
 
   // Main function for building icons with or without overlays
   Widget _buildLeadingIcon(BuildContext context, {IconData? overlayIcon}) {
-    var iconColor = iconEmoji == null
-        ? Colors.white
-        : Theme.of(context).colorScheme.onSurface;
+    var iconColor = this.iconColor ??
+        (iconEmoji == null
+            ? Colors.white
+            : Theme.of(context).colorScheme.onSurface);
     return Stack(
       children: [
         _buildMainIcon(

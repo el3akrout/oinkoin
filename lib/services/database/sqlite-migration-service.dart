@@ -40,7 +40,9 @@ class SqliteMigrationService {
               description TEXT,
               category_name TEXT,
               category_type INTEGER,
-              recurrence_id TEXT
+              recurrence_id TEXT,
+              account_id  INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+              transfer_id TEXT
           );
       """;
     batch.execute(query);
@@ -339,6 +341,28 @@ class SqliteMigrationService {
         db, "ALTER TABLE recurrent_record_patterns ADD COLUMN end_date INTEGER;");
   }
 
+  static void _createAccountsTable(Batch batch) {
+    batch.execute("""
+      CREATE TABLE IF NOT EXISTS accounts (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        name            TEXT NOT NULL,
+        color           TEXT,
+        icon            INTEGER,
+        initial_balance REAL DEFAULT 0.0
+      );
+    """);
+  }
+
+  static Future<void> _migrateTo18(Database db) async {
+    var batch = db.batch();
+    _createAccountsTable(batch);
+    await batch.commit();
+    await safeAlterTable(db,
+        "ALTER TABLE records ADD COLUMN account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL;");
+    await safeAlterTable(db,
+        "ALTER TABLE records ADD COLUMN transfer_id TEXT;");
+  }
+
   static Map<int, Function(Database)?> migrationFunctions = {
     6: SqliteMigrationService._migrateTo6,
     7: SqliteMigrationService._migrateTo7,
@@ -351,6 +375,7 @@ class SqliteMigrationService {
     15: SqliteMigrationService._migrateTo13,
     16: SqliteMigrationService._migrateTo16,
     17: SqliteMigrationService._migrateTo17,
+    18: SqliteMigrationService._migrateTo18,
   };
 
   // Public Methods
@@ -374,6 +399,7 @@ class SqliteMigrationService {
 
     // Create Tables
     _createCategoriesTable(batch);
+    _createAccountsTable(batch); // must precede records (FK reference)
     _createRecordsTable(batch);
     _createRecordsTagsTable(batch);
     _createRecurrentRecordPatternsTable(batch);

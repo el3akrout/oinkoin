@@ -84,6 +84,7 @@ void main() {
         .thenAnswer((_) async => recurrentPatterns);
     when(mockDatabase.getAllRecordTagAssociations())
         .thenAnswer((_) async => recordTagAssociations);
+    when(mockDatabase.getAllAccounts()).thenAnswer((_) async => []);
 
     when(mockDatabase.addCategory(any)).thenAnswer((_) async => 0);
     when(mockDatabase.addRecord(any)).thenAnswer((_) async => 0);

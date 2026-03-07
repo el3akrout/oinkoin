@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/models/category-type.dart';
 import 'package:piggybank/models/category.dart';
 import 'package:piggybank/models/record-tag-association.dart';
@@ -57,6 +58,18 @@ abstract class DatabaseInterface {
   Future<void> deleteRecurrentRecordPatternById(String? recurrentPatternId);
   Future<void> updateRecordPatternById(
       String? recurrentPatternId, RecurrentRecordPattern pattern);
+
+  // Account CRUD
+  Future<List<Account>> getAllAccounts();
+  Future<double> getTotalBalance();
+  Future<Account?> getAccountById(int id);
+  Future<int> addAccount(Account account);
+  Future<int> updateAccount(int id, Account account);
+  Future<void> deleteAccount(int id);
+  Future<int> addTransfer(Account from, Account to, double amount,
+      DateTime utcDateTime, {String? timeZoneName, String? note});
+  Future<void> deleteTransfer(String transferId);
+  Future<List<Record>> getRecordsForAccount(int accountId);
 
   // Utils
   Future<void> deleteDatabase();

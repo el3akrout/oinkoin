@@ -1,3 +1,4 @@
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/models/category.dart';
 import 'package:piggybank/models/model.dart';
 import 'package:piggybank/services/service-config.dart';
@@ -23,6 +24,9 @@ class Record extends Model {
   // Flag to indicate if this is a future record (not persisted to database)
   bool isFutureRecord = false;
 
+  Account? account;
+  String? transferId;
+
   Record(
     this.value,
     this.title,
@@ -34,6 +38,8 @@ class Record extends Model {
     this.timeZoneName,
     Set<String>? tags,
     this.isFutureRecord = false,
+    this.account,
+    this.transferId,
   }) {
     if (timeZoneName == null) {
       timeZoneName = ServiceConfig.localTimezone;
@@ -65,6 +71,8 @@ class Record extends Model {
       recurrencePatternId: map['recurrence_id'],
       tags:
           map['tags'] != null ? (map['tags'] as String).split(',').toSet() : {},
+      account: map['account'] as Account?,
+      transferId: map['transfer_id'] as String?,
     );
   }
 
@@ -80,7 +88,9 @@ class Record extends Model {
       'category_name': category?.name,
       'category_type': category?.categoryType?.index,
       'description': description,
-      'recurrence_id': recurrencePatternId
+      'recurrence_id': recurrencePatternId,
+      'account_id': account?.id,
+      'transfer_id': transferId,
     };
   }
 
@@ -92,6 +102,7 @@ class Record extends Model {
       'category_name': category?.name,
       'category_type':
           category?.categoryType?.index == 1 ? "Income" : "Expense",
+      'account': account?.name ?? '',
       'description': description,
       'tags': tags.join(":")
     };

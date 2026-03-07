@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:function_tree/function_tree.dart';
+import 'package:piggybank/accounts/account-selector-page.dart';
 import 'package:piggybank/categories/categories-tab-page-view.dart';
 import 'package:piggybank/components/tag_chip.dart';
 import 'package:piggybank/helpers/alert-dialog-builder.dart';
 import 'package:piggybank/helpers/datetime-utility-functions.dart';
 import 'package:piggybank/helpers/records-utility-functions.dart';
 import 'package:piggybank/i18n.dart';
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/models/category-type.dart';
 import 'package:piggybank/models/category.dart';
 import 'package:piggybank/models/record.dart';
@@ -74,6 +76,7 @@ class EditRecordPageState extends State<EditRecordPage> {
 
   Set<String> _selectedTags = {};
   Set<String> _suggestedTags = {};
+  Account? _selectedAccount;
 
   final autoDec = getAmountInputAutoDecimalShift();
 
@@ -207,8 +210,9 @@ class EditRecordPageState extends State<EditRecordPage> {
           }
         });
       }
-      // Initialize selected tags for existing record
+      // Initialize selected tags and account for existing record
       _selectedTags = Set.from(record!.tags);
+      _selectedAccount = passedRecord!.account;
     } else if (passedReccurrentRecordPattern != null) {
       // I am editing a recurrent pattern
       // Instantiate a new Record object from the pattern
@@ -407,10 +411,14 @@ class EditRecordPageState extends State<EditRecordPage> {
                 identifier: 'category-field',
                 child: Row(
                   children: [
-                    CategoryIconCircle(
-                        iconEmoji: record!.category!.iconEmoji,
-                        iconDataFromDefaultIconSet: record!.category!.icon,
-                        backgroundColor: record!.category!.color),
+                    Builder(builder: (context) {
+                      final isTransfer = record!.transferId != null;
+                      return CategoryIconCircle(
+                          iconEmoji: isTransfer ? null : record!.category!.iconEmoji,
+                          iconDataFromDefaultIconSet: isTransfer ? Icons.swap_horiz : record!.category!.icon,
+                          backgroundColor: record!.category!.color ?? (isTransfer ? Theme.of(context).colorScheme.primaryContainer : null),
+                          iconColor: isTransfer ? Colors.black : null);
+                    }),
                     Container(
                       margin: EdgeInsets.fromLTRB(20, 10, 10, 10),
                       child: Text(
@@ -426,6 +434,71 @@ class EditRecordPageState extends State<EditRecordPage> {
               ),
             ),
           ])),
+    );
+  }
+
+  Widget _createAccountCard() {
+    return Card(
+      elevation: 1,
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        child: InkWell(
+          onTap: readOnly
+              ? null
+              : () async {
+                  final selected = await Navigator.push<Account>(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => AccountSelectorPage()),
+                  );
+                  if (selected != null) {
+                    setState(() => _selectedAccount = selected);
+                  }
+                },
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: _selectedAccount?.color ??
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                radius: 20,
+                child: _selectedAccount?.iconCodePoint != null
+                    ? Icon(
+                        IconData(_selectedAccount!.iconCodePoint!,
+                            fontFamily: 'MaterialIcons'),
+                        color: Colors.white,
+                        size: 18,
+                      )
+                    : Icon(Icons.account_balance_wallet_outlined,
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                        size: 18),
+              ),
+              Container(
+                margin: EdgeInsets.fromLTRB(20, 10, 10, 10),
+                child: Text(
+                  _selectedAccount?.name ?? "No account".i18n,
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: _selectedAccount != null
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              Spacer(),
+              if (_selectedAccount != null && !readOnly)
+                IconButton(
+                  icon: Icon(Icons.close, size: 20),
+                  onPressed: () =>
+                      setState(() => _selectedAccount = null),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -846,6 +919,7 @@ class EditRecordPageState extends State<EditRecordPage> {
 
   addOrUpdateRecord() async {
     record!.tags = _selectedTags; // Assign selected tags to the record
+    record!.account = _selectedAccount;
     if (record!.id == null) {
       await database.addRecord(record);
     } else {
@@ -928,15 +1002,20 @@ class EditRecordPageState extends State<EditRecordPage> {
   }
 
   AppBar _getAppBar() {
+    final isTransfer = record?.transferId != null;
     return AppBar(
         title: Text(
-          readOnly ? 'View record'.i18n : 'Edit record'.i18n,
+          isTransfer
+              ? 'Transfer'.i18n
+              : readOnly
+                  ? 'View record'.i18n
+                  : 'Edit record'.i18n,
         ),
         actions: <Widget>[
           Visibility(
               visible: (widget.passedRecord != null ||
                       widget.passedReccurrentRecordPattern != null) &&
-                  !readOnly,
+                  (!readOnly || isTransfer),
               child: IconButton(
                   icon: Semantics(
                       identifier: "delete-button",
@@ -947,7 +1026,10 @@ class EditRecordPageState extends State<EditRecordPage> {
                         AlertDialogBuilder("Critical action".i18n)
                             .addTrueButtonName("Yes".i18n)
                             .addFalseButtonName("No".i18n);
-                    if (widget.passedRecord != null) {
+                    if (isTransfer) {
+                      deleteDialog = deleteDialog.addSubtitle(
+                          "Do you really want to delete this transfer? Both sides will be removed.".i18n);
+                    } else if (widget.passedRecord != null) {
                       deleteDialog = deleteDialog.addSubtitle(
                           "Do you really want to delete this record?".i18n);
                     } else {
@@ -990,6 +1072,7 @@ class EditRecordPageState extends State<EditRecordPage> {
                   _createAmountCard(),
                   _createTitleCard(),
                   _createCategoryCard(),
+                  _createAccountCard(),
                   _createDateAndRepeatCard(),
                   _createTagsSection(),
                   _createAddNoteCard(),
