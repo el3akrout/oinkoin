@@ -37,7 +37,8 @@ class OverviewCard extends StatelessWidget {
       : aggregatedRecords = aggregateRecordsByDate(records, aggregationMethod),
         sumValues = isBalance
             ? records.fold(0.0, (acc, e) {
-                double val = e!.value!.abs();
+                if (e!.category!.categoryType == CategoryType.transfer) return acc as double;
+                double val = e.value!.abs();
                 return (acc as double) +
                     (e.category!.categoryType == CategoryType.income
                         ? val

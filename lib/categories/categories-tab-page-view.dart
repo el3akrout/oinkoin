@@ -34,7 +34,7 @@ class CategoryTabPageViewState extends State<CategoryTabPageView> {
 
   Future<void> _fetchCategories() async {
     List<Category?> categories = await database.getAllCategories();
-    categories = categories.where((element) => !element!.isArchived).toList();
+    categories = categories.where((element) => !element!.isArchived && element.categoryType != CategoryType.transfer).toList();
     categories.sort((a, b) => a!.sortOrder!.compareTo(b!.sortOrder!));
     setState(() {
       _categories = categories;

@@ -65,6 +65,7 @@ class TabCategoriesState extends State<TabCategories>
 
   Future<void> _fetchCategories() async {
     List<Category?> categories = await database.getAllCategories();
+    categories.removeWhere((c) => c?.categoryType == CategoryType.transfer);
     categories.sort((a, b) => a!.sortOrder!.compareTo(b!.sortOrder!));
     setState(() {
       _categories = categories;

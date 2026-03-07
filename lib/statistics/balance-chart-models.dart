@@ -53,6 +53,7 @@ class ComparisonDataAggregator {
       final key = config.getKey(truncated);
 
       if (data.containsKey(key)) {
+        if (record.category?.categoryType == CategoryType.transfer) continue;
         if (record.category?.categoryType == CategoryType.expense) {
           data[key]!.expenses += record.value?.abs() ?? 0;
         } else {

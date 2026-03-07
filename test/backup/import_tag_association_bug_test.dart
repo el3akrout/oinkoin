@@ -122,6 +122,7 @@ void main() {
 
     when(mockDatabase.getRecurrentRecordPattern(any))
         .thenAnswer((_) async => null);
+    when(mockDatabase.getAllAccounts()).thenAnswer((_) async => []);
 
     // Create backup file
     final backupFile = await BackupService.createJsonBackupFile(
@@ -202,6 +203,7 @@ void main() {
 
     when(mockDatabase.getRecurrentRecordPattern(any))
         .thenAnswer((_) async => null);
+    when(mockDatabase.getAllAccounts()).thenAnswer((_) async => []);
 
     final backupFile = await BackupService.createJsonBackupFile(
       directoryPath: testDir.path,

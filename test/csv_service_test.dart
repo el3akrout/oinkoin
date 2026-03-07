@@ -1,5 +1,6 @@
 import 'package:csv/csv.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/models/category-type.dart';
 import 'package:piggybank/models/category.dart';
 import 'package:piggybank/models/record.dart';
@@ -58,7 +59,7 @@ void main() {
       final List<List<dynamic>> parsedCsv = converter.convert(csv);
 
       expect(parsedCsv[1][0], 'Test, Record with comma');
-      expect(parsedCsv[1][5], 'Description with\nnewline and "quotes"');
+      expect(parsedCsv[1][6], 'Description with\nnewline and "quotes"');
     });
 
     test(
@@ -81,7 +82,37 @@ void main() {
       final converter = CsvToListConverter();
       final List<List<dynamic>> parsedCsv = converter.convert(csv);
 
-      expect(parsedCsv[1][6], 'tag1:tag2:tag3');
+      expect(parsedCsv[1][7], 'tag1:tag2:tag3');
+    });
+
+    test('createCSVFromRecordList should exclude transfer records', () {
+      final expense = Category('Food', categoryType: CategoryType.expense);
+      final transfer = Category('Transfer', categoryType: CategoryType.transfer);
+      final records = [
+        Record(-50.0, 'Groceries', expense, DateTime(2023, 1, 1), id: 1),
+        Record(-100.0, 'Transfer out', transfer, DateTime(2023, 1, 2), id: 2),
+        Record(100.0, 'Transfer in', transfer, DateTime(2023, 1, 2), id: 3),
+      ];
+      final csv = CSVExporter.createCSVFromRecordList(records);
+      final List<List<dynamic>> parsedCsv = CsvToListConverter().convert(csv);
+
+      expect(parsedCsv.length, 2); // Header + 1 expense only
+      expect(parsedCsv[1][0], 'Groceries');
+    });
+
+    test('createCSVFromRecordList should include account name column', () {
+      final category = Category('Food', categoryType: CategoryType.expense);
+      final records = [
+        Record(-30.0, 'Lunch', category, DateTime(2023, 1, 1),
+            id: 1, account: Account('Cash', id: 1)),
+        Record(-20.0, 'Coffee', category, DateTime(2023, 1, 2), id: 2),
+      ];
+      final csv = CSVExporter.createCSVFromRecordList(records);
+      final List<List<dynamic>> parsedCsv = CsvToListConverter().convert(csv);
+
+      expect(parsedCsv[0][5], 'account'); // header
+      expect(parsedCsv[1][5], 'Cash');
+      expect(parsedCsv[2][5], '');
     });
 
     test('createCSVFromRecordList should handle empty record list', () {

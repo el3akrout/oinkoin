@@ -1,4 +1,5 @@
 import 'package:csv/csv.dart';
+import 'package:piggybank/models/category-type.dart';
 import 'package:piggybank/models/record.dart';
 import 'logger.dart';
 
@@ -9,8 +10,11 @@ class CSVExporter {
   static createCSVFromRecordList(List<Record?> records) {
     try {
       _logger.debug('Creating CSV from ${records.length} records...');
+      final exportable = records
+          .where((r) => r?.category?.categoryType != CategoryType.transfer)
+          .toList();
       var recordsMap =
-          List.generate(records.length, (index) => records[index]!.toCsvMap());
+          List.generate(exportable.length, (index) => exportable[index]!.toCsvMap());
       List<List<dynamic>> csvLines = [];
       if (recordsMap.isNotEmpty) {
         recordsMap.forEach((element) {
@@ -21,7 +25,7 @@ class CSVExporter {
       } else {
         // Provide a default header if no records are present
         _logger.warning('No records to export, using default header');
-        csvLines.insert(0, ['title', 'value', 'datetime', 'category_name', 'category_type', 'description', 'tags']);
+        csvLines.insert(0, ['title', 'value', 'datetime', 'category_name', 'category_type', 'account', 'description', 'tags']);
       }
       var csv = ListToCsvConverter().convert(csvLines);
       _logger.info('CSV created: ${csvLines.length} lines (including header)');

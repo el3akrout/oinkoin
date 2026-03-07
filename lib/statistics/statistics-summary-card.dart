@@ -183,6 +183,7 @@ class _StatisticsSummaryCardState extends State<StatisticsSummaryCard> {
     final aggregatedCategories = _aggregateCategories(recordsToUse);
 
     for (var tuple in aggregatedCategories.values) {
+      if (tuple.key.categoryType == CategoryType.transfer) continue;
       categoriesByType[tuple.key.categoryType]!.add(tuple);
     }
 
@@ -201,6 +202,7 @@ class _StatisticsSummaryCardState extends State<StatisticsSummaryCard> {
 
     for (var record in records) {
       if (record?.category == null) continue;
+      if (record!.category!.categoryType == CategoryType.transfer) continue;
 
       final uniqueKey =
           '${record!.category!.name}_${record.category!.categoryType}';
