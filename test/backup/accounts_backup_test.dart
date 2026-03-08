@@ -12,6 +12,8 @@ import 'package:piggybank/models/category.dart';
 import 'package:piggybank/models/record-tag-association.dart';
 import 'package:piggybank/models/record.dart';
 import 'package:piggybank/services/backup-service.dart';
+import 'package:piggybank/settings/constants/preferences-keys.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test/test.dart' as testlib;
 
 import 'backup_service_test.mocks.dart';
@@ -264,6 +266,120 @@ void main() {
       verify(mockDatabase.addAccount(argThat(
         predicate<Account>((a) => a.name == 'Imported Account'),
       ))).called(1);
+    });
+  });
+
+  // ── defaultAccountId remap on restore ──────────────────────────────────────
+  group('BackupService — defaultAccountId remap on restore', () {
+    late MockDatabaseInterface mockDatabase;
+    late Directory testDir;
+
+    setUpAll(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      mockDatabase = MockDatabaseInterface();
+
+      when(mockDatabase.getAllRecords()).thenAnswer((_) async => []);
+      when(mockDatabase.getAllCategories()).thenAnswer((_) async => []);
+      when(mockDatabase.getRecurrentRecordPatterns()).thenAnswer((_) async => []);
+      when(mockDatabase.getAllRecordTagAssociations()).thenAnswer((_) async => []);
+      when(mockDatabase.getAllAccounts()).thenAnswer((_) async => []);
+      when(mockDatabase.addCategory(any)).thenAnswer((_) async => 0);
+      when(mockDatabase.addRecordsInBatch(any)).thenAnswer((_) async => null);
+      when(mockDatabase.addRecurrentRecordPattern(any)).thenAnswer((_) async => null);
+      when(mockDatabase.getRecurrentRecordPattern(any)).thenAnswer((_) async => null);
+      // addAccount: backup account id=10 → new id=99
+      when(mockDatabase.addAccount(any)).thenAnswer((_) async => 99);
+
+      BackupService.database = mockDatabase;
+
+      testDir = Directory('test/temp_defaultaccount');
+      const MethodChannel pkgChannel =
+          MethodChannel('dev.fluttercommunity.plus/package_info');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(pkgChannel, (call) async {
+        if (call.method == 'getAll') {
+          return {
+            'appName': 'test',
+            'packageName': 'com.test',
+            'version': '1.0',
+            'buildNumber': '1',
+          };
+        }
+        return null;
+      });
+      const MethodChannel pathChannel =
+          MethodChannel('plugins.flutter.io/path_provider');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(pathChannel, (_) async => testDir.path);
+    });
+
+    testlib.setUp(() async {
+      if (await testDir.exists()) await testDir.delete(recursive: true);
+      await testDir.create(recursive: true);
+    });
+
+    tearDownAll(() async {
+      if (await testDir.exists()) await testDir.delete(recursive: true);
+    });
+
+    // Builds a minimal backup file with one account (old id=10).
+    Future<File> _buildBackupFile(Directory dir) async {
+      final backupData = {
+        'records': [],
+        'categories': [],
+        'recurrent_record_patterns': [],
+        'record_tag_associations': [],
+        'accounts': [
+          {'id': 10, 'name': 'Cash', 'initial_balance': 0.0}
+        ],
+        'created_at': 0,
+        'package_name': 'com.test',
+        'version': '1.0',
+        'database_version': '18',
+      };
+      final file = File('${dir.path}/backup.obackup.json');
+      await file.writeAsString(jsonEncode(backupData));
+      return file;
+    }
+
+    testlib.test(
+        'defaultAccountId is remapped to new id when account is in the backup',
+        () async {
+      SharedPreferences.setMockInitialValues(
+          {PreferencesKeys.defaultAccountId: 10});
+
+      final file = await _buildBackupFile(testDir);
+      await BackupService.importDataFromBackupFile(file);
+
+      final prefs = await SharedPreferences.getInstance();
+      // old id=10 → new id=99 (stubbed by addAccount returning 99)
+      expect(prefs.getInt(PreferencesKeys.defaultAccountId), 99);
+    });
+
+    testlib.test(
+        'defaultAccountId is cleared when the account is not in the backup',
+        () async {
+      // pref points to id=55 which is not in the backup
+      SharedPreferences.setMockInitialValues(
+          {PreferencesKeys.defaultAccountId: 55});
+
+      final file = await _buildBackupFile(testDir);
+      await BackupService.importDataFromBackupFile(file);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey(PreferencesKeys.defaultAccountId), isFalse);
+    });
+
+    testlib.test(
+        'defaultAccountId is left untouched when it was not set before restore',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+
+      final file = await _buildBackupFile(testDir);
+      await BackupService.importDataFromBackupFile(file);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey(PreferencesKeys.defaultAccountId), isFalse);
     });
   });
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:piggybank/accounts/account-selector-page.dart';
 import 'package:piggybank/i18n.dart';
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/services/service-config.dart';
 import 'package:piggybank/settings/components/setting-separator.dart';
 import 'package:piggybank/settings/constants/preferences-keys.dart';
@@ -58,6 +60,16 @@ class CustomizationPageState extends State<CustomizationPage> {
     await fetchMiscPreferences();
     await fetchStatisticsPreferences();
     await fetchHomepagePreferences();
+    await fetchAccountPreferences();
+  }
+
+  Future<void> fetchAccountPreferences() async {
+    final defaultAccountId = prefs.getInt(PreferencesKeys.defaultAccountId);
+    if (defaultAccountId != null) {
+      _defaultAccount = await ServiceConfig.database.getAccountById(defaultAccountId);
+    } else {
+      _defaultAccount = null;
+    }
   }
 
   // All fetch preferences methods
@@ -257,6 +269,9 @@ class CustomizationPageState extends State<CustomizationPage> {
   // Statistics
   late bool statisticsPieChartUseCategoryColors;
   late String statisticsPieChartNumberOfCategoriesToDisplay;
+
+  // Accounts
+  Account? _defaultAccount;
 
   static void invalidateNumberPatternCache() {
     ServiceConfig.currencyNumberFormat = null;
@@ -481,6 +496,38 @@ class CustomizationPageState extends State<CustomizationPage> {
                       switchValue: statisticsPieChartUseCategoryColors,
                       sharedConfigKey:
                           PreferencesKeys.statisticsPieChartUseCategoryColors,
+                    ),
+                    SettingSeparator(title: "Accounts".i18n),
+                    ListTile(
+                      title: Text("Default account".i18n, style: titleTextStyle),
+                      subtitle: Text(
+                        _defaultAccount?.name ?? "No account".i18n,
+                        style: subtitleTextStyle,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_defaultAccount != null)
+                            IconButton(
+                              icon: Icon(Icons.close, size: 20),
+                              onPressed: () async {
+                                await prefs.remove(PreferencesKeys.defaultAccountId);
+                                setState(() => _defaultAccount = null);
+                              },
+                            ),
+                          Icon(Icons.chevron_right),
+                        ],
+                      ),
+                      onTap: () async {
+                        final selected = await Navigator.push<Account>(
+                          context,
+                          MaterialPageRoute(builder: (_) => AccountSelectorPage()),
+                        );
+                        if (selected != null && selected.id != null) {
+                          await prefs.setInt(PreferencesKeys.defaultAccountId, selected.id!);
+                          setState(() => _defaultAccount = selected);
+                        }
+                      },
                     ),
                     SettingSeparator(title: "Additional Settings".i18n),
                     DropdownCustomizationItem(

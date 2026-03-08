@@ -246,6 +246,13 @@ class EditRecordPageState extends State<EditRecordPage> {
       record = Record(null, null, passedCategory, DateTime.now().toUtc());
       localDisplayDate = record!.localDateTime;
       _selectedTags = {};
+      // Load default account if one is set
+      final defaultAccountId = ServiceConfig.sharedPreferences?.getInt(PreferencesKeys.defaultAccountId);
+      if (defaultAccountId != null) {
+        database.getAccountById(defaultAccountId).then((account) {
+          if (mounted && account != null) setState(() => _selectedAccount = account);
+        });
+      }
       if (autoDec && record!.value == null) {
         final decSep = getDecimalSeparator();
         final decDigits = getNumberDecimalDigits();

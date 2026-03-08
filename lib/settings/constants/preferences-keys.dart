@@ -47,4 +47,7 @@ class PreferencesKeys {
   // Statistics
   static var statisticsPieChartUseCategoryColors = "statisticsPieChartUseCategoryColors";
   static var statisticsPieChartNumberOfCategoriesToDisplay = "statisticsPieChartNumberOfCategoriesToDisplay";
+
+  // Accounts
+  static const defaultAccountId = 'defaultAccountId';
 }

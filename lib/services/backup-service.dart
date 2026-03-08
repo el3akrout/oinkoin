@@ -299,6 +299,17 @@ class BackupService {
       // Add records in batch — Phase 2 will correctly map tags to new IDs
       await database.addRecordsInBatch(backup.records);
 
+      // Remap defaultAccountId preference to the new account ID after restore
+      final prefs = await SharedPreferences.getInstance();
+      final savedDefaultAccountId = prefs.getInt(PreferencesKeys.defaultAccountId);
+      if (savedDefaultAccountId != null) {
+        if (accountIdRemap.containsKey(savedDefaultAccountId)) {
+          await prefs.setInt(PreferencesKeys.defaultAccountId, accountIdRemap[savedDefaultAccountId]!);
+        } else {
+          await prefs.remove(PreferencesKeys.defaultAccountId);
+        }
+      }
+
       // Add recurrent patterns
       for (var backupRecurrentPatterns in backup.recurrentRecordsPattern) {
         String? recurrentPatternId = backupRecurrentPatterns.id;

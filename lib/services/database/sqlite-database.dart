@@ -857,7 +857,7 @@ class SqliteDatabase implements DatabaseInterface {
     final db = (await database)!;
     final result = await db.rawQuery("""
       SELECT COALESCE((SELECT SUM(initial_balance) FROM accounts), 0)
-           + COALESCE((SELECT SUM(value) FROM records), 0) AS total
+           + COALESCE((SELECT SUM(value) FROM records WHERE account_id IS NOT NULL), 0) AS total
     """);
     return (result.first['total'] as num).toDouble();
   }
