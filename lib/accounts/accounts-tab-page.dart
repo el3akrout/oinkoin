@@ -160,8 +160,7 @@ class TabAccountsState extends State<TabAccounts> {
               backgroundColor: account.color ?? Colors.blueGrey,
               child: account.iconCodePoint != null
                   ? Icon(
-                      IconData(account.iconCodePoint!,
-                          fontFamily: 'MaterialIcons'),
+                      Account.iconFromCodePoint(account.iconCodePoint!),
                       color: Colors.white,
                       size: 20,
                     )

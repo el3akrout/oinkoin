@@ -463,8 +463,7 @@ class EditRecordPageState extends State<EditRecordPage> {
                 radius: 20,
                 child: _selectedAccount?.iconCodePoint != null
                     ? Icon(
-                        IconData(_selectedAccount!.iconCodePoint!,
-                            fontFamily: 'MaterialIcons'),
+                        Account.iconFromCodePoint(_selectedAccount!.iconCodePoint!),
                         color: Colors.white,
                         size: 18,
                       )

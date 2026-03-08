@@ -104,8 +104,7 @@ class TransferPageState extends State<TransferPage> {
                     account?.color ?? Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: account?.iconCodePoint != null
                     ? Icon(
-                        IconData(account!.iconCodePoint!,
-                            fontFamily: 'MaterialIcons'),
+                        Account.iconFromCodePoint(account!.iconCodePoint!),
                         color: Colors.white,
                         size: 20,
                       )

@@ -28,20 +28,6 @@ class EditAccountPageState extends State<EditAccountPage> {
   int _selectedColorIndex = 0;
   int? _selectedIconCodePoint;
 
-  // A small set of wallet-style icons
-  static final List<IconData> _accountIcons = [
-    Icons.account_balance_wallet,
-    Icons.account_balance,
-    Icons.savings,
-    Icons.credit_card,
-    Icons.monetization_on,
-    Icons.euro,
-    Icons.attach_money,
-    Icons.money,
-    Icons.pie_chart,
-    Icons.trending_up,
-  ];
-
   EditAccountPageState(this.passedAccount);
 
   @override
@@ -239,7 +225,7 @@ class EditAccountPageState extends State<EditAccountPage> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _accountIcons.map((icon) {
+                    children: Account.icons.map((icon) {
                       final isSelected =
                           _selectedIconCodePoint == icon.codePoint;
                       return GestureDetector(

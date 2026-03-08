@@ -4,6 +4,26 @@ import 'package:piggybank/models/model.dart';
 import '../helpers/color-utils.dart';
 
 class Account extends Model {
+  static const List<IconData> icons = [
+    Icons.account_balance_wallet,
+    Icons.account_balance,
+    Icons.savings,
+    Icons.credit_card,
+    Icons.monetization_on,
+    Icons.euro,
+    Icons.attach_money,
+    Icons.money,
+    Icons.pie_chart,
+    Icons.trending_up,
+  ];
+
+  static IconData iconFromCodePoint(int codePoint) {
+    return icons.firstWhere(
+      (icon) => icon.codePoint == codePoint,
+      orElse: () => Icons.account_balance_wallet,
+    );
+  }
+
   int? id;
   String? name;
   Color? color;
