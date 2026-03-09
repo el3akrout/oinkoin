@@ -19,6 +19,7 @@ class TabAccountsState extends State<TabAccounts> {
   DatabaseInterface database = ServiceConfig.database;
   List<Account>? _accounts;
   double _totalBalance = 0.0;
+  bool _balancesHidden = false;
 
   @override
   void initState() {
@@ -67,6 +68,13 @@ class TabAccountsState extends State<TabAccounts> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Accounts".i18n),
+        actions: [
+          IconButton(
+            icon: Icon(_balancesHidden ? Icons.visibility_off : Icons.visibility),
+            tooltip: _balancesHidden ? "Show balances".i18n : "Hide balances".i18n,
+            onPressed: () => setState(() => _balancesHidden = !_balancesHidden),
+          ),
+        ],
       ),
       body: _buildBody(),
       floatingActionButton: Column(
@@ -116,7 +124,7 @@ class TabAccountsState extends State<TabAccounts> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
             ),
             Text(
-              getCurrencyValueString(_totalBalance),
+              _balancesHidden ? '••••••' : getCurrencyValueString(_totalBalance),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -170,7 +178,7 @@ class TabAccountsState extends State<TabAccounts> {
             title: Text(account.name ?? '',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             trailing: Text(
-              getCurrencyValueString(balance),
+              _balancesHidden ? '••••' : getCurrencyValueString(balance),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
