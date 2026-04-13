@@ -75,7 +75,8 @@ class SqliteMigrationService {
                 recurrence_id TEXT,
                 date_str TEXT,
                 tags TEXT,
-                end_date INTEGER
+                end_date INTEGER,
+                account_id  INTEGER REFERENCES accounts(id) ON DELETE SET NULL
             );
         """;
     batch.execute(query);
@@ -363,6 +364,11 @@ class SqliteMigrationService {
         "ALTER TABLE records ADD COLUMN transfer_id TEXT;");
   }
 
+  static Future<void> _migrateTo19(Database db) async {
+    await safeAlterTable(db,
+        "ALTER TABLE recurrent_record_patterns ADD COLUMN account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL;");
+  }
+
   static Map<int, Function(Database)?> migrationFunctions = {
     6: SqliteMigrationService._migrateTo6,
     7: SqliteMigrationService._migrateTo7,
@@ -376,6 +382,7 @@ class SqliteMigrationService {
     16: SqliteMigrationService._migrateTo16,
     17: SqliteMigrationService._migrateTo17,
     18: SqliteMigrationService._migrateTo18,
+    19: SqliteMigrationService._migrateTo19,
   };
 
   // Public Methods

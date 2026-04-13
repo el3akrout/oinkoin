@@ -1,3 +1,4 @@
+import 'package:piggybank/models/account.dart';
 import 'package:piggybank/models/category.dart';
 import 'package:piggybank/models/record.dart';
 import 'package:piggybank/services/service-config.dart';
@@ -18,6 +19,7 @@ class RecurrentRecordPattern {
   RecurrentPeriod? recurrentPeriod;
   DateTime? utcLastUpdate;
   Set<String> tags = {};
+  Account? account;
 
   RecurrentRecordPattern(this.value, this.title, this.category,
       this.utcDateTime, this.recurrentPeriod,
@@ -26,6 +28,7 @@ class RecurrentRecordPattern {
       this.utcEndDate,
       this.utcLastUpdate,
       this.timeZoneName,
+      this.account,
       Set<String>? tags}) {
     if (timeZoneName == null) {
       timeZoneName = ServiceConfig.localTimezone;
@@ -46,6 +49,7 @@ class RecurrentRecordPattern {
         utcDateTime = record.utcDateTime,
         description = record.description,
         timeZoneName = record.timeZoneName,
+        account = record.account,
         tags = record.tags;
 
   /// Serialize to database
@@ -62,6 +66,7 @@ class RecurrentRecordPattern {
       'last_update': utcLastUpdate?.millisecondsSinceEpoch,
       'tags': tags.where((t) => t.trim().isNotEmpty).join(','),
       'end_date': utcEndDate?.millisecondsSinceEpoch,
+      'account_id': account?.id,
     };
     if (id != null) map['id'] = id;
     return map;
@@ -110,6 +115,7 @@ class RecurrentRecordPattern {
       utcEndDate: utcEndDate,
       utcLastUpdate: utcLastUpdate,
       timeZoneName: timezone,
+      account: map['account'] as Account?,
       tags: tags,
     );
   }

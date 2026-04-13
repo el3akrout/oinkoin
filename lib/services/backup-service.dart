@@ -310,8 +310,13 @@ class BackupService {
         }
       }
 
-      // Add recurrent patterns
+      // Remap account IDs in recurrent patterns and add them
       for (var backupRecurrentPatterns in backup.recurrentRecordsPattern) {
+        if (backupRecurrentPatterns.account?.id != null &&
+            accountIdRemap.containsKey(backupRecurrentPatterns.account!.id)) {
+          backupRecurrentPatterns.account!.id =
+              accountIdRemap[backupRecurrentPatterns.account!.id];
+        }
         String? recurrentPatternId = backupRecurrentPatterns.id;
         if (await database.getRecurrentRecordPattern(recurrentPatternId) ==
             null) {

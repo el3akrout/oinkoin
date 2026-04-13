@@ -960,6 +960,7 @@ class EditRecordPageState extends State<EditRecordPage> {
   }
 
   addOrUpdateRecurrentPattern({id}) async {
+    record!.account = _selectedAccount; // mirror what addOrUpdateRecord does
     // Create a new recurrent pattern from the updated record
     RecurrentRecordPattern recordPattern =
         RecurrentRecordPattern.fromRecord(

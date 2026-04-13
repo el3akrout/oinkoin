@@ -215,6 +215,20 @@ class ShellState extends State<Shell> {
           selectedIndex: _currentIndex,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           onDestinationSelected: (int index) async {
+            if (index == _currentIndex) {
+              // Already on this tab — pop back if in a nested page
+              NavigatorState? currentNavigator;
+              switch (index) {
+                case 0: currentNavigator = _homeNavigatorKey.currentState; break;
+                case 1: currentNavigator = _categoriesNavigatorKey.currentState; break;
+                case 2: currentNavigator = _accountsNavigatorKey.currentState; break;
+                case 3: currentNavigator = _settingsNavigatorKey.currentState; break;
+              }
+              if (currentNavigator != null && currentNavigator.canPop()) {
+                currentNavigator.pop();
+              }
+              return;
+            }
             setState(() {
               _currentIndex = index;
             });

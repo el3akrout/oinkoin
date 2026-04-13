@@ -96,6 +96,12 @@ class Backup extends Model {
           orElse: () => throw Exception(
               "Category not found")); // Provide a fallback or throw an error
       currentRowMap["category"] = matchingCategory;
+      // Resolve account_id -> a stub Account carrying only the old ID,
+      // so importDataFromBackupFile can remap it without aliasing backup.accounts objects.
+      final accountId = currentRowMap["account_id"] as int?;
+      if (accountId != null) {
+        currentRowMap["account"] = Account(null, id: accountId);
+      }
       return RecurrentRecordPattern.fromMap(currentRowMap);
     });
 

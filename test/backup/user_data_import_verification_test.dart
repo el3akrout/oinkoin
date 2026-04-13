@@ -147,6 +147,15 @@ void main() {
         .setMockMethodCallHandler(channel2, (MethodCall methodCall) async {
       return testDir;
     });
+    const MethodChannel channel3 =
+        MethodChannel('plugins.flutter.io/shared_preferences');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel3, (MethodCall methodCall) async {
+      if (methodCall.method == 'getAll') {
+        return <String, Object>{};
+      }
+      return null;
+    });
   });
 
   tearDownAll(() async {

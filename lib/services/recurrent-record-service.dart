@@ -54,6 +54,7 @@ class RecurrentRecordService {
         description: recordPattern.description,
         recurrencePatternId: recordPattern.id,
         tags: recordPattern.tags,
+        account: recordPattern.account,
       );
       newRecurrentRecords.add(newRecord);
       lastUpdateTz = startDate;
@@ -143,6 +144,7 @@ class RecurrentRecordService {
             description: recordPattern.description,
             recurrencePatternId: recordPattern.id,
             tags: recordPattern.tags,
+            account: recordPattern.account,
           );
           newRecurrentRecords.add(newRecord);
           currentDate = nextDate;

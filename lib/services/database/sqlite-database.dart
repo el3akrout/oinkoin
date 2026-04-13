@@ -33,7 +33,7 @@ class SqliteDatabase implements DatabaseInterface {
 
   SqliteDatabase._privateConstructor();
   static final SqliteDatabase instance = SqliteDatabase._privateConstructor();
-  static int get version => 18;
+  static int get version => 19;
   static Database? _db;
 
   /// For testing only: allows setting a custom database instance
@@ -673,13 +673,28 @@ class SqliteDatabase implements DatabaseInterface {
   Future<List<RecurrentRecordPattern>> getRecurrentRecordPatterns() async {
     final db = (await database)!;
     var maps = await db.rawQuery("""
-            SELECT m.*, c.name, c.color, c.category_type, c.icon, c.icon_emoji, c.is_archived, m.tags
-            FROM recurrent_record_patterns as m LEFT JOIN categories as c ON m.category_name = c.name AND m.category_type = c.category_type
+            SELECT m.*, c.name, c.color, c.category_type, c.icon, c.icon_emoji, c.is_archived, m.tags,
+                   a.id AS acct_id, a.name AS acct_name, a.color AS acct_color, a.icon AS acct_icon,
+                   a.initial_balance AS acct_initial_balance
+            FROM recurrent_record_patterns as m
+            LEFT JOIN categories as c ON m.category_name = c.name AND m.category_type = c.category_type
+            LEFT JOIN accounts as a ON m.account_id = a.id
         """);
 
     var results = List.generate(maps.length, (i) {
       Map<String, dynamic> currentRowMap = Map<String, dynamic>.from(maps[i]);
       currentRowMap["category"] = Category.fromMap(currentRowMap);
+      if (currentRowMap['acct_id'] != null) {
+        currentRowMap['account'] = Account(
+          currentRowMap['acct_name'] as String?,
+          id: currentRowMap['acct_id'] as int?,
+          iconCodePoint: currentRowMap['acct_icon'] as int?,
+          initialBalance: currentRowMap['acct_initial_balance'] != null
+              ? (currentRowMap['acct_initial_balance'] as num).toDouble()
+              : 0.0,
+          color: _parseAccountColor(currentRowMap['acct_color'] as String?),
+        );
+      }
       return RecurrentRecordPattern.fromMap(currentRowMap);
     });
 
@@ -691,14 +706,29 @@ class SqliteDatabase implements DatabaseInterface {
       String? recurrentPatternId) async {
     final db = (await database)!;
     var maps = await db.rawQuery("""
-            SELECT m.*, c.name, c.color, c.category_type, c.icon, c.icon_emoji, m.tags
-            FROM recurrent_record_patterns as m LEFT JOIN categories as c ON m.category_name = c.name AND m.category_type = c.category_type
+            SELECT m.*, c.name, c.color, c.category_type, c.icon, c.icon_emoji, m.tags,
+                   a.id AS acct_id, a.name AS acct_name, a.color AS acct_color, a.icon AS acct_icon,
+                   a.initial_balance AS acct_initial_balance
+            FROM recurrent_record_patterns as m
+            LEFT JOIN categories as c ON m.category_name = c.name AND m.category_type = c.category_type
+            LEFT JOIN accounts as a ON m.account_id = a.id
             WHERE m.id = ?
         """, [recurrentPatternId]);
 
     var results = List.generate(maps.length, (i) {
       Map<String, dynamic> currentRowMap = Map<String, dynamic>.from(maps[i]);
       currentRowMap["category"] = Category.fromMap(currentRowMap);
+      if (currentRowMap['acct_id'] != null) {
+        currentRowMap['account'] = Account(
+          currentRowMap['acct_name'] as String?,
+          id: currentRowMap['acct_id'] as int?,
+          iconCodePoint: currentRowMap['acct_icon'] as int?,
+          initialBalance: currentRowMap['acct_initial_balance'] != null
+              ? (currentRowMap['acct_initial_balance'] as num).toDouble()
+              : 0.0,
+          color: _parseAccountColor(currentRowMap['acct_color'] as String?),
+        );
+      }
       return RecurrentRecordPattern.fromMap(currentRowMap);
     });
 
@@ -857,7 +887,7 @@ class SqliteDatabase implements DatabaseInterface {
     final db = (await database)!;
     final result = await db.rawQuery("""
       SELECT COALESCE((SELECT SUM(initial_balance) FROM accounts), 0)
-           + COALESCE((SELECT SUM(value) FROM records WHERE account_id IS NOT NULL), 0) AS total
+           + COALESCE((SELECT SUM(value) FROM records WHERE transfer_id IS NULL), 0) AS total
     """);
     return (result.first['total'] as num).toDouble();
   }
